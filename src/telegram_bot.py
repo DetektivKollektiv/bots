@@ -17,6 +17,20 @@ logger = logging.getLogger(__name__)
 
 GDPR, CONTENT, ADD_INFO, CONTACT, FREQUENCY, CHANNEL, SUBMIT = range(7)
 
+# For API calls and web links (e.g. to the archive)
+API_PREFIX = "dev."
+
+try:
+    SECRET_NAME = "telegram_bot_token_{}".format(os.environ['STAGE'])
+    if os.environ['STAGE'] == "prod":
+        API_PREFIX = ""
+    else:
+        API_PREFIX = "{}.".format(os.environ['STAGE'])
+except KeyError:
+    # if environment variable is not set (e.g. in local debugging): use local dev bot token
+    SECRET_NAME = "telegram_bot_token_local_dev"
+
+
 class TelegramTokenError(Exception):
     pass
 
@@ -26,15 +40,9 @@ def get_telegram_token():
     ----------
     is_test: boolean
         If this method is called from a test
-    secret_name: string
+    SECRET_NAME: string
         The name of the telegram bot token in the secrets manager
     """
-
-    try:
-        secret_name = "telegram_bot_token_{}".format(os.environ['STAGE'])
-    except KeyError:
-        # if environment variable is not set (e.g. in local debugging): use dev bot token
-        secret_name = "telegram_bot_token_dev"
 
     # Create a Secrets Manager client
     session = boto3.session.Session()
@@ -45,14 +53,14 @@ def get_telegram_token():
 
     try:
         get_secret_value_response = client.get_secret_value(
-            SecretId=secret_name
+            SecretId=SECRET_NAME
         )
 
         print(get_secret_value_response)
 
         # Decrypts secret using the associated KMS CMK.
         secret = get_secret_value_response['SecretString']
-        telegram_bot_token = json.loads(secret)[secret_name]
+        telegram_bot_token = json.loads(secret)[SECRET_NAME]
 
         return telegram_bot_token
 
@@ -112,9 +120,9 @@ def start(update, context):
         reply_markup = InlineKeyboardMarkup(keyboard)
         hello_text = """
         Hi {}, hier ist Derrick - die tüchtige Assistenz des DetektivKollektivs. Danke, dass du dich an uns wendest! 🤩
-        \nBevor du einen Fall an unsere Detektiv*innen weiterleiten kannst, müsstest du erst unserer <a href='https://qa.detective-collective.org/data-privacy'>Datenschutzerklärung</a> zustimmen.
+        \nBevor du einen Fall an unsere Detektiv*innen weiterleiten kannst, müsstest du erst unserer <a href='https://{}detective-collective.org/data-privacy'>Datenschutzerklärung</a> zustimmen.
         """
-        update.message.reply_text(hello_text.format(user.first_name), parse_mode=ParseMode.HTML)
+        update.message.reply_text(hello_text.format(user.first_name, API_PREFIX), parse_mode=ParseMode.HTML)
         # Send message with text and appended InlineKeyboard
         update.message.reply_text(
             "Bist du mit der Datenschutzerklärung einverstanden?",
@@ -138,7 +146,7 @@ def gdpr_denied(update, context):
     """Returns `ConversationHandler.END`, which tells the
     ConversationHandler that the conversation is over"""
     query = update.callback_query
-    query.from_user.send_message("Alles klar. Schau doch mal in unser Archiv auf detektivkollektiv.de, vielleicht ist Dein Fall ja schon dabei!")
+    query.from_user.send_message("Alles klar. Schau doch mal in unser Archiv auf https://{}detective-collective.org/archive, vielleicht ist Dein Fall ja schon dabei!".format(API_PREFIX))
     return ConversationHandler.END
 
 
@@ -274,7 +282,7 @@ def submit_item(update, context):
     print(new_submission)
 
     # Call API endpoint /item_submission
-    api_url = "https://api.dev.detective-collective.org/item_submission"
+    api_url = "https://api.{}detective-collective.org/item_submission".format(API_PREFIX)
     r = requests.post(api_url, data = json.dumps(new_submission))
     
     logger.info("New item submitted by user {}. Response code: {}. New item created: {}. Body: {}".format(user.username, r.status_code, r.headers["new-item-created"], r.text))
