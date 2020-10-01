@@ -13,4 +13,4 @@ RUN pip install -r requirements.txt
 COPY src/ .
 
 # command to run on container start
-CMD [ "python", "./telegram_bot_without_emojis.py" ]
+CMD [ "python", "./telegram_bot.py" ]
