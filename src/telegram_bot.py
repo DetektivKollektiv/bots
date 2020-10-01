@@ -1,3 +1,4 @@
+import os
 from telegram import *
 from telegram.ext import *
 import logging
@@ -16,28 +17,45 @@ logger = logging.getLogger(__name__)
 
 GDPR, CONTENT, ADD_INFO, CONTACT, FREQUENCY, CHANNEL, SUBMIT = range(7)
 
-def get_secret():
+class TelegramTokenError(Exception):
+    pass
 
-    secret_name = "dev/telegrambot"
-    region_name = "eu-central-1"
+def get_telegram_token():
+    """Gets the telegram bot token for the respective stage (dev/qa/prod) from the secrets manager.
+    Parameters
+    ----------
+    is_test: boolean
+        If this method is called from a test
+    secret_name: string
+        The name of the telegram bot token in the secrets manager
+    """
+
+    secret_name = "telegram_bot_token_{}".format(os.environ['STAGE'])
 
     # Create a Secrets Manager client
     session = boto3.session.Session()
-    client = session.client(service_name='secretsmanager', region_name=region_name)
+    client = session.client(
+        service_name='secretsmanager',
+        region_name='eu-central-1'
+    )
 
     try:
-        get_secret_value_response = client.get_secret_value(SecretId=secret_name)
-    except ClientError as e:
-        logger.error(e)
-    else:
-        # Decrypts secret using the associated KMS CMK.
-        # Depending on whether the secret is a string or binary, one of these fields will be populated.
-        if 'SecretString' in get_secret_value_response:
-            return get_secret_value_response['SecretString']
-        else:
-            return base64.b64decode(get_secret_value_response['SecretBinary'])
-            
+        get_secret_value_response = client.get_secret_value(
+            SecretId=secret_name
+        )
 
+        print(get_secret_value_response)
+
+        # Decrypts secret using the associated KMS CMK.
+        secret = get_secret_value_response['SecretString']
+        telegram_bot_token = json.loads(secret)[secret_name]
+
+        return telegram_bot_token
+
+    except ClientError as e:
+        logging.exception("Could not get telegram bot token from the secrets manager. Secrets manager error: {}".format(
+            e.response['Error']['Code']))
+        raise TelegramTokenError
 
 
 def typing(original_function=None, seconds=None):
@@ -266,7 +284,7 @@ def main():
     # Create the Updater and pass it your bot's token.
     # Make sure to set use_context=True to use the new context based callbacks
     # Post version 12 this will no longer be necessary
-    updater = Updater(get_secret(), use_context=True)
+    updater = Updater(get_telegram_token, use_context=True)
 
     # Get the dispatcher to register handlers
     # TODO: replace dev with env variable
