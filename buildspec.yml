@@ -25,7 +25,7 @@ phases:
       - docker push $REPOSITORY_URI:$IMAGE_TAG
       - docker push $REPOSITORY_URI:$COMMIT_TAG
       - echo Writing image definitions file...
-      - printf '[{"name":"container-telegram-bot-%s","imageUri":"%s"}]' $STAGE $REPOSITORY_URI:$COMMIT_TAG
-      - printf '[{"name":"container-telegram-bot-%s","imageUri":"%s"}]' $STAGE $REPOSITORY_URI:$COMMIT_TAG > imagedefinitions.json
+      - printf '[{"name":"container-telegram-bot-%s","imageUri":"%s"}]' "$STAGE" "$REPOSITORY_URI:$COMMIT_TAG"
+      - printf '[{"name":"container-telegram-bot-%s","imageUri":"%s"}]' "$STAGE" "$REPOSITORY_URI:$COMMIT_TAG" > imagedefinitions.json
 artifacts:
   files: imagedefinitions.json
