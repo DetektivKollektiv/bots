@@ -30,7 +30,11 @@ def get_telegram_token():
         The name of the telegram bot token in the secrets manager
     """
 
-    secret_name = "telegram_bot_token_{}".format(os.environ['STAGE'])
+    try:
+        secret_name = "telegram_bot_token_{}".format(os.environ['STAGE'])
+    except KeyError:
+        # if environment variable is not set (e.g. in local debugging): use dev bot token
+        secret_name = "telegram_bot_token_dev"
 
     # Create a Secrets Manager client
     session = boto3.session.Session()
@@ -284,7 +288,7 @@ def main():
     # Create the Updater and pass it your bot's token.
     # Make sure to set use_context=True to use the new context based callbacks
     # Post version 12 this will no longer be necessary
-    updater = Updater(get_telegram_token, use_context=True)
+    updater = Updater(get_telegram_token(), use_context=True)
 
     # Get the dispatcher to register handlers
     # TODO: replace dev with env variable
