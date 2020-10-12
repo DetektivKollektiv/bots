@@ -313,9 +313,10 @@ def ask_channel(update, context):
 @typing
 def confirm_submit_item(update, context):
     query = update.callback_query
-    user =  query.from_user
-    context.user_data["channel"] = query.data
-    logger.info("User %s provided channel: %s", user.username, context.user_data["channel"])
+    user = query.from_user
+    if query.data != "nein":
+        context.user_data["channel"] = query.data
+        logger.info("User %s provided channel: %s", user.username, context.user_data["channel"])
 
     if context.user_data["give_add_info"]:
         keyboard = [
@@ -351,7 +352,7 @@ def submit_item(update, context):
     for key in to_remove:
         new_submission.pop(key)
     # TODO: set telegram_id (requires model to be changed)
-    # new_submission["telegram_id"] = user.id
+    new_submission["telegram_id"] = user.id
     print(new_submission)
 
     # Call API endpoint /item_submission
