@@ -15,7 +15,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 logger = logging.getLogger(__name__)
 
-GDPR, CONTENT, ADD_INFO, CONTACT, FREQUENCY, CHANNEL, SUBMIT = range(7)
+GDPR, TYPE, CONTENT, ADD_INFO, CONTACT, FREQUENCY, CHANNEL, SUBMIT = range(8)
 
 # For API calls and web links (e.g. to the archive)
 API_PREFIX = "dev."
@@ -128,17 +128,62 @@ def start(update, context):
             "Bist du mit der Datenschutzerklärung einverstanden?",
             reply_markup=reply_markup
         )
-        # Tell ConversationHandler that we're in state `FIRST` now
+        # Tell ConversationHandler that we're in state `GDPR` now
+        return GDPR
+
+
+@typing
+def welcome_back(update, context):
+        """Send message on `/start`."""
+
+        # Get user that sent /start and log his name
+        user = update.message.from_user
+        logger.info("User {} started a new conversation. Metadata: \n{}".format(user.username, update))
+
+        # Clear all previous user data
+        context.user_data.clear()
+
+        # Build InlineKeyboard where each button has a displayed text
+        # and a string as callback_data
+        # The keyboard is a list of button rows, where each row is in turn
+        # a list (hence `[[...]]`).
+        keyboard = [
+            [InlineKeyboardButton("ja", callback_data="ja"),
+            InlineKeyboardButton("nein", callback_data="nein")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        hello_text = """
+        Hi {}! 👋 Bevor wir deinen Fall annehmen können, musst du wie immer unserer <a href='https://{}detective-collective.org/data-privacy'>Datenschutzerklärung</a> zustimmen.
+        """
+        update.message.reply_text(hello_text.format(user.first_name, API_PREFIX), parse_mode=ParseMode.HTML)
+        # Send message with text and appended InlineKeyboard
+        update.message.reply_text(
+            "Bist du mit der Datenschutzerklärung einverstanden?",
+            reply_markup=reply_markup
+        )
+        # Tell ConversationHandler that we're in state `GDPR` now
         return GDPR
 
 
 @typing
 def gdpr_accepted(update, context):
-    """Returns `ConversationHandler.END`, which tells the
-    ConversationHandler that the conversation is over"""
+    """Next step: Ask user for item type"""
+
     query = update.callback_query
-    query.from_user.send_message("Super, dann kann's ja losgehen! Schicke mir bitte jetzt die Nachricht, die du überprüfen lassen möchtest.")
-    return CONTENT
+    user =  query.from_user
+
+    keyboard = [
+            [InlineKeyboardButton("Textnachricht 💬", callback_data="claim"),
+            InlineKeyboardButton("Link zu Artikel 📰", callback_data="article")]
+        ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+        
+    user.send_message(
+        "Super, dann können wir ja loslegen! 🙌 \n\nHandelt es sich bei deinem Fall um eine reine Textnachricht bzw. Aussage oder um einen Link zu einem Artikel?",
+        reply_markup=reply_markup
+    )
+
+    return TYPE
 
 
 @typing
@@ -146,8 +191,25 @@ def gdpr_denied(update, context):
     """Returns `ConversationHandler.END`, which tells the
     ConversationHandler that the conversation is over"""
     query = update.callback_query
-    query.from_user.send_message("Alles klar. Schau doch mal in unser Archiv auf https://{}detective-collective.org/archive, vielleicht ist Dein Fall ja schon dabei!".format(API_PREFIX))
+    user = query.from_user
+    user.send_message("Alles klar. Schau doch mal in unser Archiv auf https://{}detective-collective.org/archive, vielleicht ist Dein Fall ja schon dabei!".format(API_PREFIX))
     return ConversationHandler.END
+
+
+@typing
+def ask_content(update, context):
+
+    query = update.callback_query
+    user =  query.from_user
+    context.user_data["type"] = query.data
+    type = context.user_data["type"]
+
+    if type == "claim":
+        user.send_message("Okay. Bitte gib jetzt die Nachricht ein, die du überprüfen lassen möchtest. Du kannst die Nachricht auch an mich weiterleiten.")
+    else:
+        user.send_message("Okay. Bitte gib jetzt den Link (URL) zu dem Artikel ein, den du überprüfen lassen möchtest.")     
+
+    return CONTENT
 
 
 @typing
@@ -155,6 +217,7 @@ def ask_additional_info(update, context):
 
     user = update.message.from_user
     context.user_data["content"] = update.message.text
+    context.user_data["give_add_info"] = False
     logger.info("User %s wants to submit new item: %s", user.username, context.user_data["content"])
 
     keyboard = [
@@ -177,6 +240,8 @@ def ask_contact(update, context):
     query = update.callback_query
     user =  query.from_user
     logger.info("User %s wants to provide contact.", user.username)
+    
+    context.user_data["give_add_info"] = True
 
     keyboard = [
             [InlineKeyboardButton("Familie / enge Freunde", callback_data="family"),
@@ -252,12 +317,20 @@ def confirm_submit_item(update, context):
     context.user_data["channel"] = query.data
     logger.info("User %s provided channel: %s", user.username, context.user_data["channel"])
 
-    keyboard = [
+    if context.user_data["give_add_info"]:
+        keyboard = [
+        [InlineKeyboardButton("Ja, Fall einreichen! ✔️", callback_data="submit")],
         [InlineKeyboardButton("⏪ zurück", callback_data="back"),
-        InlineKeyboardButton("Ja! ✔️", callback_data="submit")]
-    ]
+        InlineKeyboardButton("abbrechen 🚫", callback_data="cancel")]
+        ]
+    else:
+        keyboard = [
+        [InlineKeyboardButton("Ja, Fall einreichen! ✔️", callback_data="submit")],
+        [InlineKeyboardButton("abbrechen 🚫", callback_data="cancel")]
+        ]
+    
     reply_markup = InlineKeyboardMarkup(keyboard)
-    user.send_message("Fertig! Möchtest du den Fall jetzt einreichen?",reply_markup=reply_markup)        
+    user.send_message("Okay! Möchtest du den Fall jetzt einreichen?",reply_markup=reply_markup)        
 
     return SUBMIT
 
@@ -287,7 +360,7 @@ def submit_item(update, context):
     
     logger.info("New item submitted by user {}. Response code: {}. New item created: {}. Body: {}".format(user.username, r.status_code, r.headers["new-item-created"], r.text))
 
-    query.from_user.send_message("Vielen Dank, dein Fall wurde nun eingereicht! Wir melden uns bei dir, sobald unsere Detektiv*innen Deinen Fall gelöst haben.")
+    query.from_user.send_message("Vielen Dank, dein Fall wurde nun eingereicht! 🥳 Wir melden uns bei dir, sobald unsere Detektiv*innen Deinen Fall gelöst haben.")
     return ConversationHandler.END
 
 
@@ -309,13 +382,15 @@ def main():
     # $ means "end of line/string"
     # So ^ABC$ will only allow 'ABC'
     conv_handler = ConversationHandler(
-        entry_points=[CommandHandler('start', start)],
+        entry_points=[CommandHandler('start', start, pass_user_data=True), MessageHandler(Filters.text, welcome_back)],
+        # entry_points=[CommandHandler('start', start, pass_user_data=True)],
         states={
             GDPR: [CallbackQueryHandler(gdpr_accepted, pattern='^ja$'),
                     CallbackQueryHandler(gdpr_denied, pattern='^nein$')],
+            TYPE: [CallbackQueryHandler(ask_content, pattern='^claim$|^article$')],
             CONTENT: [MessageHandler(Filters.text, ask_additional_info)],
             ADD_INFO: [CallbackQueryHandler(ask_contact, pattern='^ja$'),
-                    CallbackQueryHandler(submit_item, pattern='^nein$')],
+                    CallbackQueryHandler(confirm_submit_item, pattern='^nein$')],
             CONTACT: [CallbackQueryHandler(ask_frequency, pattern='^family$'),
                     CallbackQueryHandler(ask_frequency, pattern='^acquaintance$'),
                     CallbackQueryHandler(ask_frequency, pattern='^stranger$'),
@@ -342,7 +417,8 @@ def main():
                     CallbackQueryHandler(confirm_submit_item, pattern='^in_person$'),
                     CallbackQueryHandler(confirm_submit_item, pattern='^skip$')],
             SUBMIT: [CallbackQueryHandler(ask_channel, pattern='^back$'),
-                    CallbackQueryHandler(submit_item, pattern='^submit$')],
+                    CallbackQueryHandler(submit_item, pattern='^submit$'),
+                    CallbackQueryHandler(gdpr_denied, pattern='^cancel$')],
         },
         fallbacks=[CommandHandler('start', start)]
     )
