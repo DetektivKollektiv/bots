@@ -297,12 +297,12 @@ def ask_channel(update, context):
             [InlineKeyboardButton("mündlich 🗣", callback_data="orally"),
             InlineKeyboardButton("Internet allgemein 🖥", callback_data="internet")],
             [InlineKeyboardButton("Fernsehen 📺", callback_data="tv"),
-            InlineKeyboardButton("sonstiges", callback_data="other")],
+            InlineKeyboardButton("Sonstiges", callback_data="other")],
             [InlineKeyboardButton("⏪ zurück", callback_data="back"),
             InlineKeyboardButton("überspringen ⏩", callback_data="skip")]
         ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    user.send_message("Okay. Wo hat dich die Information erreicht?",reply_markup=reply_markup)        
+    user.send_message("Okay. Wo hat dich die Information als Erstes erreicht?",reply_markup=reply_markup)        
 
     return CHANNEL
 
