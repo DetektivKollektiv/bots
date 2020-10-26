@@ -173,7 +173,7 @@ def gdpr_accepted(update, context):
     user =  query.from_user
 
     keyboard = [
-            [InlineKeyboardButton("Textnachricht 💬", callback_data="claim"),
+            [InlineKeyboardButton("Textnachricht ✏️", callback_data="claim"),
             InlineKeyboardButton("Link zu Artikel 📰", callback_data="article")]
         ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -247,11 +247,11 @@ def ask_contact(update, context):
             [InlineKeyboardButton("Familie / enge Freunde", callback_data="family"),
             InlineKeyboardButton("Bekannte", callback_data="acquaintance")],
             [InlineKeyboardButton("Fremde", callback_data="stranger"),
-            InlineKeyboardButton("selbst online gefunden", callback_data="internet")],
+            InlineKeyboardButton("Sonstiges", callback_data="other")],
             [InlineKeyboardButton("überspringen ⏩", callback_data="skip")]
         ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    user.send_message("Alles klar! Wer hat dir die Nachricht geschickt?",reply_markup=reply_markup)      
+    user.send_message("Alles klar! Wie hat dich die Information erreicht?",reply_markup=reply_markup)      
 
     return CONTACT
 
@@ -276,7 +276,7 @@ def ask_frequency(update, context):
             InlineKeyboardButton("überspringen ⏩", callback_data="skip")]
         ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    user.send_message("Okay. Wie oft hat dich die Nachricht insgesamt erreicht?",reply_markup=reply_markup)        
+    user.send_message("Okay. Wie oft hat dich die Information insgesamt erreicht?",reply_markup=reply_markup)        
 
     return FREQUENCY
 
@@ -291,21 +291,18 @@ def ask_channel(update, context):
     logger.info("User %s wants to provide channel.", user.username)
 
     keyboard = [
-            [InlineKeyboardButton("Telegram", callback_data="Telegram"),
-            InlineKeyboardButton("WhatsApp", callback_data="WhatsApp")],
-            [InlineKeyboardButton("Facebook", callback_data="Facebook"),
-            InlineKeyboardButton("Instagram", callback_data="Instagram")],
-            [InlineKeyboardButton("Twitter", callback_data="Twitter"),
-            InlineKeyboardButton("YouTube", callback_data="YouTube")],
-            [InlineKeyboardButton("anderer Messenger 📱", callback_data="messenger")],
-            [InlineKeyboardButton("anderes soziales Netzwerk 📢", callback_data="social_network")],
-            [InlineKeyboardButton("Internet allgemein (z.B. Nachrichtenseite) 💻", callback_data="internet")],
-            [InlineKeyboardButton("mündlich im Gespräch 💬", callback_data="in_person")],
+            [InlineKeyboardButton("SMS oder Messenger (z.B. WhatsApp) 📱", callback_data="messenger")],
+            [InlineKeyboardButton("soziale Medien (z.B. Facebook, Twitter) 💬", callback_data="social_media")],
+            [InlineKeyboardButton("Videoplattform (z.B. Youtube) ▶️", callback_data="video_platform")],
+            [InlineKeyboardButton("mündlich 🗣", callback_data="orally"),
+            InlineKeyboardButton("Internet allgemein 🖥", callback_data="internet")],
+            [InlineKeyboardButton("Fernsehen 📺", callback_data="tv"),
+            InlineKeyboardButton("Sonstiges", callback_data="other")],
             [InlineKeyboardButton("⏪ zurück", callback_data="back"),
             InlineKeyboardButton("überspringen ⏩", callback_data="skip")]
         ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    user.send_message("Okay. Auf welchem Weg hat dich die Nachricht erreicht?",reply_markup=reply_markup)        
+    user.send_message("Okay. Wo hat dich die Information als Erstes erreicht?",reply_markup=reply_markup)        
 
     return CHANNEL
 
@@ -361,7 +358,7 @@ def submit_item(update, context):
     
     logger.info("New item submitted by user {}. Response code: {}. New item created: {}. Body: {}".format(user.username, r.status_code, r.headers["new-item-created"], r.text))
 
-    query.from_user.send_message("Vielen Dank, dein Fall wurde nun eingereicht! 🥳 Wir melden uns bei dir, sobald unsere Detektiv*innen Deinen Fall gelöst haben.")
+    query.from_user.send_message("Vielen Dank, dein Fall wurde nun eingereicht! 🥳 Wir melden uns bei dir, sobald unsere Detektiv*innen deinen Fall gelöst haben.")
     return ConversationHandler.END
 
 
@@ -395,7 +392,7 @@ def main():
             CONTACT: [CallbackQueryHandler(ask_frequency, pattern='^family$'),
                     CallbackQueryHandler(ask_frequency, pattern='^acquaintance$'),
                     CallbackQueryHandler(ask_frequency, pattern='^stranger$'),
-                    CallbackQueryHandler(ask_frequency, pattern='^internet$'),
+                    CallbackQueryHandler(ask_frequency, pattern='^other$'),
                     CallbackQueryHandler(ask_frequency, pattern='^skip$')],
             FREQUENCY: [CallbackQueryHandler(ask_contact, pattern='^back$'),
                     CallbackQueryHandler(ask_channel, pattern='^1$'),
@@ -406,16 +403,13 @@ def main():
                     CallbackQueryHandler(ask_channel, pattern='^6\+$'),
                     CallbackQueryHandler(ask_channel, pattern='^skip$')],
             CHANNEL: [CallbackQueryHandler(ask_frequency, pattern='^back$'),
-                    CallbackQueryHandler(confirm_submit_item, pattern='^Telegram$'),
-                    CallbackQueryHandler(confirm_submit_item, pattern='^WhatsApp$'),
-                    CallbackQueryHandler(confirm_submit_item, pattern='^Facebook$'),
-                    CallbackQueryHandler(confirm_submit_item, pattern='^Instagram$'),
-                    CallbackQueryHandler(confirm_submit_item, pattern='^Twitter$'),
-                    CallbackQueryHandler(confirm_submit_item, pattern='^YouTube$'),
                     CallbackQueryHandler(confirm_submit_item, pattern='^messenger$'),
-                    CallbackQueryHandler(confirm_submit_item, pattern='^social_network$'),
+                    CallbackQueryHandler(confirm_submit_item, pattern='^social_media$'),
+                    CallbackQueryHandler(confirm_submit_item, pattern='^video_platform$'),
+                    CallbackQueryHandler(confirm_submit_item, pattern='^orally$'),
                     CallbackQueryHandler(confirm_submit_item, pattern='^internet$'),
-                    CallbackQueryHandler(confirm_submit_item, pattern='^in_person$'),
+                    CallbackQueryHandler(confirm_submit_item, pattern='^tv$'),
+                    CallbackQueryHandler(confirm_submit_item, pattern='^other$'),
                     CallbackQueryHandler(confirm_submit_item, pattern='^skip$')],
             SUBMIT: [CallbackQueryHandler(ask_channel, pattern='^back$'),
                     CallbackQueryHandler(submit_item, pattern='^submit$'),
