@@ -12,6 +12,8 @@ phases:
       - REPOSITORY_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME
       - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
       - COMMIT_TAG=${COMMIT_HASH:=$IMAGE_TAG}
+      - echo Logging in to Docker...
+      - docker login -u $dockerhub_username -p $dockerhub_password
   build:
     commands:
       - echo Build started on `date`
